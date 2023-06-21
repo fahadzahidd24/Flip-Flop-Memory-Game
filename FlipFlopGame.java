@@ -1,9 +1,14 @@
 import java.awt.*;
-import java.awt.event.*;
+// import java.awt.event.*;
 import javax.swing.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+// import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -65,7 +70,6 @@ public class FlipFlopGame extends JFrame {
     private void startGame(String playerName) {
         nameField.setVisible(false);
         startButton.setVisible(false);
-        // nameLabel.setVisible(false);
 
         alphabet = loadImagesFromDirectory("images");
 
@@ -180,14 +184,17 @@ public class FlipFlopGame extends JFrame {
         if (numTilesFlipped == 0) {
             firstTileIndex = tileIndex;
             numTilesFlipped++;
-        } else if (numTilesFlipped == 1) {
+        } else if (numTilesFlipped == 1 && firstTileIndex != tileIndex) {
             isClickable = false;
             flipTile(tileIndex);
             numTilesFlipped++;
             numTurns++;
             updateTurnsLabel();
 
-            if (tileIndices[firstTileIndex] == tileIndices[tileIndex]) {
+            String imagePath1 = alphabet[tileIndices[firstTileIndex]];
+            String imagePath2 = alphabet[tileIndices[tileIndex]];
+
+            if (imagePath1.equals(imagePath2)) {
                 disableTile(firstTileIndex);
                 disableTile(tileIndex);
                 numTilesFlipped = 0;
@@ -220,9 +227,33 @@ public class FlipFlopGame extends JFrame {
             }
         }
         gameTimer.stop();
+        String playerName = nameField.getText();
+        String timeTaken = timerLabel.getText();
+        String numTurnsString = Integer.toString(numTurns);
         JOptionPane.showMessageDialog(this,
-                "Congratulations, " + nameField.getText() + "! You won!\nTime taken: " + timerLabel.getText() + "\nNumber of Turns: " + numTurns);
+                "Congratulations, " + playerName + "! You won!\nTime taken: " + timeTaken + "\nNumber of Turns: "
+                        + numTurnsString);
+        saveToDatabase(playerName, timeTaken, numTurnsString);
         System.exit(0);
+    }
+
+    private void saveToDatabase(String playerName, String timeTaken, String numTurns) {
+        try {
+            String url = "jdbc:ucanaccess://FF_db.accdb";
+            Connection conn = DriverManager.getConnection(url);
+
+            String query = "INSERT INTO FlipFlop (Name, Top_Record, Turns) VALUES (?, ?, ?)";
+            PreparedStatement statement = conn.prepareStatement(query);
+            statement.setString(1, playerName);
+            statement.setString(2, timeTaken);
+            statement.setString(3, numTurns);
+            statement.executeUpdate();
+
+            statement.close();
+            conn.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+        }
     }
 
     private class TileActionListener implements ActionListener {
